@@ -119,7 +119,7 @@ def create_deployment(task_info, blocking=False):
             return resp, True
         else:
             print("Failed to start deployment " + name + " ." + str(running_count) + " pods are running.")
-            print("Begin to delete the deployment： " + name)
+            print("Begin to delete the deployment: " + name)
             delete_deployment(task_info, blocking=True)
             return resp, False
 
@@ -179,6 +179,63 @@ def resume_deployment(task_info, blocking=False):
 #     except ApiException as e:
 #         print(e)
 #         return None
+
+
+
+def append_or_update_node_label(node_name, label_k, label_v):
+    '''
+    TODO: add node's labels if label_k doesn't exsit
+    '''
+    body = {
+    "metadata": {
+        "labels": {
+            label_k: label_v}
+        }
+    }
+    print("Appending or updating node's label: " + label_k  + "=" + label_v )
+    try:
+        api_response = core_v1.patch_node(node_name, body)
+        return api_response
+    except ApiException as e:
+        print(e)
+        return None
+
+def remove_node_label(node_name, label_k):
+    '''
+    TODO: delete node's labels 
+    '''    
+    body = {
+    "metadata": {
+        "labels": {
+            label_k: None}
+        }
+    }
+    print("Deleting node's label: " + label_k)
+    try:
+        api_response = core_v1.patch_node(node_name, body)
+        return api_response
+    except ApiException as e:
+        print(e)
+        return None 
+
+def get_node_labels(node_name):
+    '''
+    TODO: get node's labels
+    '''
+    v1_node = get_node_info(node_name)
+    if v1_node==None:
+        return None
+    else:
+        metadata = v1_node.metadata
+        return metadata.labels
+
+
+def get_pod_log(name, namespace):
+    '''
+    TODO: get_pod_log
+    '''
+    pass
+
 
 
 # get functions
