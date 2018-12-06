@@ -1,5 +1,5 @@
 
-from api2 import *
+from api import *
 
 import yaml
 
@@ -123,7 +123,7 @@ class Tclient(object):
 
     def list_deployment_pod_name(self, namespace, deployment_name):
         return list_deployment_pod_name(namespace, deployment_name)
-        
+
 
 def test(counts, memorys,shared,replicas=1):
     test_gpu_name = shared_gpu_name if shared else exclusive_gpu_name
