@@ -20,9 +20,9 @@ def convert_str_to_num(q_str):
     else:
         return 0
 
-def check_selector_and_pod_label(task_info):
+def check(task_info):
     try:
-        check(task_info)
+        check_selector_and_pod_label(task_info)
         return True
     except Exception as e:
         print(e)
@@ -30,7 +30,7 @@ def check_selector_and_pod_label(task_info):
         print(task_info)
         return False
     
-def check(task_info):
+def check_selector_and_pod_label(task_info):
     data = task_info.get("data") # dict parsed from yaml
     assert data!=None
     metadata = data.get("metadata")
