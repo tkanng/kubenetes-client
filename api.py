@@ -32,8 +32,10 @@ def create_deployment(task_info, blocking=False):
     task_info:
     {
         'data':{} dict data parsed from yaml file
-        'owner':'hua.li'
-        'namespace':'default'
+        'owner':'hua.li',
+        'namespace':'default',
+        'timestamp':
+
     }
 
     task_info['data']:
@@ -133,6 +135,10 @@ def delete_deployment(task_info,blocking=False):
     namespace  = task_info.get("namespace")
     data = task_info.get("data") # dict parsed from yaml 
     name = data.get("metadata").get("name")
+    return delete(name, namespace,blocking=blocking)
+
+def delete(name, namespace, blocking=False):
+    print("Deleting deployment " + name)
     try:
         api_response = extensions_v1beta1.delete_namespaced_deployment(
             name = name,
@@ -150,8 +156,7 @@ def delete_deployment(task_info,blocking=False):
             time.sleep(3)
         print("Delete deployment " + name  + " successfully!")
         return api_response,True
-
-
+    
 def resume_deployment(task_info, blocking=False):
     '''
     return: api_response, is_success(boolean)
@@ -184,8 +189,8 @@ def resume_deployment(task_info, blocking=False):
 
 def append_or_update_node_label(node_name, label_k, label_v):
     '''
-    TODO: add node's labels if label_k doesn't exsit
-    '''
+    :return: api_response or None 
+    '''    
     body = {
     "metadata": {
         "labels": {
@@ -202,7 +207,7 @@ def append_or_update_node_label(node_name, label_k, label_v):
 
 def remove_node_label(node_name, label_k):
     '''
-    TODO: delete node's labels 
+    :return: api_response or None 
     '''    
     body = {
     "metadata": {
@@ -220,7 +225,7 @@ def remove_node_label(node_name, label_k):
 
 def get_node_labels(node_name):
     '''
-    TODO: get node's labels
+    :return: node's labels
     '''
     v1_node = get_node_info(node_name)
     if v1_node==None:
@@ -229,13 +234,11 @@ def get_node_labels(node_name):
         metadata = v1_node.metadata
         return metadata.labels
 
-
 def get_pod_log(name, namespace):
     '''
     TODO: get_pod_log
     '''
     pass
-
 
 
 # get functions
@@ -255,6 +258,7 @@ def get_deployment_info(name, namespace):
     :return: ExtensionsV1beta1Deployment
             If the method is called asynchronously,
             returns the request thread.
+    TODO: Append pod's info to deployment info
     '''
     try:
         api_response = extensions_v1beta1.read_namespaced_deployment(name = name, namespace = namespace)
@@ -262,8 +266,7 @@ def get_deployment_info(name, namespace):
     except ApiException as e:
         if str(e.status) == "404" and e.reason =="Not Found":
             print("Deployment " + name + " not found.")
-        else:
-            print(e)
+        print(e)
         return None
 
 def get_pod_info(name, namespace):

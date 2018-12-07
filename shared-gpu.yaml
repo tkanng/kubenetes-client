@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: tensorflow
+spec:
+  selector:
+    matchLabels:
+      app: tensorflow
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: tensorflow
+    spec:
+      containers:
+      - name: shared-gp111
+        image: tensorflow/tensorflow:latest-gpu
+        resources:
+          limits:
+            nvidia.com/shared-gpu: 3 # requesting 2 GPUs
+            nvidia.com/gpu-memory: "0Mi"

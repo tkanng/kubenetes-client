@@ -2,14 +2,11 @@
 from api import *
 
 import yaml
+import utils
 
 import time
 
 class Tclient(object):
-
-    def __init__(self, submit_retry_time=5):
-        self.submit_retry_time = submit_retry_time
-
 
     def create_deployment(self, task_info, blocking=False):
         '''
@@ -38,7 +35,7 @@ class Tclient(object):
                             "resources": {
                             "limits": {
                                 "nvidia.com/shared-gpu": "1",
-                                "nvidia.com/gpu-memory": "1Gi",
+                                "nvidia.com/gpu-memory": "1Gi",     # ATENTION!!!!
                             }
                             }
                         }
@@ -73,6 +70,9 @@ class Tclient(object):
             :return:
         """
         return delete_deployment(task_info, blocking)
+
+    def delete(self,name, namespace, blocking=False):
+        return delete(name, namespace, blocking=blocking)
     
     def resume_deployment(self, task_info, blocking=False):
         return resume_deployment(task_info, blocking)
@@ -124,90 +124,92 @@ class Tclient(object):
     def list_deployment_pod_name(self, namespace, deployment_name):
         return list_deployment_pod_name(namespace, deployment_name)
 
-
-# def test(counts, memorys,shared,replicas=1):
-#     test_gpu_name = shared_gpu_name if shared else exclusive_gpu_name
-#     for i in range(len(counts)):
-#         resource = {
-#             "limits":{
-#                  test_gpu_name: str(counts[i]), 
-#                  gpu_memory_name: '{}Mi'.format(memorys[i]*1024),
-#             }
-#         }
-#         name = "{mode}-c-{count}-m-{memory}".format(mode="shared" if shared else "exclusive", count=counts[i], memory=memorys[i])
-#         _, result = tclient.submit(namespace,name,image,resource,replicas,blocking=True)
-#         if result==False:
-#             # Failed to start the deployment, delete the deployment
-#             tclient.delete(name, namespace, blocking=True) 
-#             continue
-#         podNames = tclient.list_deployment_pod_name(namespace,name)
-#         print("PodNames: " + str(podNames))
-#         phase = get_pod_info(podNames[0],namespace).status.phase
-#         print("Pods phase: " + phase)
-#         time.sleep(15)
-#         tclient.list_node_allocatable_resources()
-#         tclient.list_node_allocated_resources()      
-#         tclient.delete(name, namespace,blocking=True)
-
+    def test(self,counts, memorys,shared,task_info,replicas=1):
+        test_gpu_name = shared_gpu_name if shared else exclusive_gpu_name
+        for i in range(len(counts)):
+            resource = {
+                    test_gpu_name: str(counts[i]), 
+                    gpu_memory_name: '{}Mi'.format(memorys[i]*1024)
+            }
+            name = "{mode}-c-{count}-m-{memory}".format(mode="shared" if shared else "exclusive", count=counts[i], memory=memorys[i])
+            utils.set_name(task_info, name)
+            utils.set_resource_limits(task_info, resource)
+            _, result = self.create_deployment(task_info, blocking=True)
+            if result==False:
+                # Failed to start the deployment, delete the deployment
+                self.delete(name, namespace, blocking=True) 
+                continue
+            podNames = self.list_deployment_pod_name(namespace,name)
+            print("PodNames: " + str(podNames))
+            phase = get_pod_info(podNames[0],namespace).status.phase
+            print("Pods phase: " + phase)
+            time.sleep(15)
+            self.list_node_allocatable_resources()
+            self.list_node_allocated_resources()      
+            self.delete(name, namespace,blocking=True)
 
 if __name__ == '__main__':
-    print(get_node_labels("tusimple"))
-    append_or_update_node_label("tusimple", "foo", "bar1")
-    print(get_node_labels("tusimple"))
-    append_or_update_node_label("tusimple", "foo", "bar2")
-    print(get_node_labels("tusimple"))
-    remove_node_label("tusimple", "foo")
-    print(get_node_labels("tusimple"))
-    remove_node_label("tusimple", "foo")
-    print(get_node_labels("tusimple"))
+    tclient = Tclient()
+    task_info = {}
+    namespace = "default"
+    with open("./shared-gpu.yaml") as f:
+        data=yaml.load(f)
+        task_info["data"] = data
+        task_info["owner"] = "qiang.kang"
+        task_info["namespace"] = namespace
+    
 
+    # print(get_node_labels("tusimple"))
+    # append_or_update_node_label("tusimple", "foo", "bar1")
+    # print(get_node_labels("tusimple"))
+    # append_or_update_node_label("tusimple", "foo", "bar2")
+    # print(get_node_labels("tusimple"))
+    # remove_node_label("tusimple", "foo")
+    # print(get_node_labels("tusimple"))
+    # remove_node_label("tusimple", "foo")
+    # print(get_node_labels("tusimple"))
     # tclient = Tclient()
     # namespace = "default"
     # image = "tensorflow/tensorflow:latest-gpu"
     # replicas = 1
-    # print("initializing test environment")
-    # shared_name = "shared-gpu"
-    # resource = {
-    #     "limits":{
-    #          shared_gpu_name: '3', 
-    #     }
-    # }
 
-    # tclient.submit(namespace,shared_name,image,resource,1, blocking=True)
-    # exclusive_name = "exclusive-gpu"
-    # resource = {
-    #     "limits":{
-    #          exclusive_gpu_name: '3',
-    #     }
-    # }
-    # tclient.submit(namespace,exclusive_name,image,resource,1,blocking=True)
-
-    # try:
-    #     print("*"*50+"shared count" +"*"*50)
-    #     print("*"*100)
-    #     counts = [1,5,6]
-    #     test(counts, [0]*len(counts), True)
+    print("initializing test environment")
+    shared_name = "shared-gpu"
+    resource = {shared_gpu_name: '3'}
+    utils.set_name(task_info,shared_name)
+    utils.set_resource_limits(task_info, resource)
+    print(task_info)
+    tclient.create_deployment(task_info,blocking=True)
+    exclusive_name = "exclusive-gpu"
+    resource = {exclusive_gpu_name: '3'}
+    utils.set_name(task_info, exclusive_name)
+    utils.set_resource_limits(task_info, resource)
+    tclient.create_deployment(task_info,blocking=True)
+    try:
+        print("*"*50+"shared count" +"*"*50)
+        print("*"*100)
+        counts = [1,5,6]
+        tclient.test(counts, [0]*len(counts), True, task_info)
         
-    #     print("*"*50+"exclusive count"  +"*"*50)
-    #     print("*"*100)
-    #     counts = [2,4,1]
-    #     test(counts, [0]*len(counts), False)
+        print("*"*50+"exclusive count"  +"*"*50)
+        print("*"*100)
+        counts = [2,4,1]
+        tclient.test(counts, [0]*len(counts), False, task_info)
         
-    #     print("*"*50+"shared memory" +"*"*50)
-    #     print("*"*100)
-    #     counts = [2,2,3,5,5]
-    #     memorys = [20,30,30,50,60]
-    #     test(counts, memorys, True)
+        print("*"*50+"shared memory" +"*"*50)
+        print("*"*100)
+        counts = [2,2,3,5,5]
+        memorys = [20,30,30,50,60]
+        tclient.test(counts, memorys, True,task_info)
 
-    #     print("*"*50+"exclusive memory" +"*"*50)
-    #     print("*"*100)
-    #     counts = [1,1]
-    #     memorys = [10,12]
-    #     test(counts, memorys, False)
-    # finally:
-    #     tclient.delete(shared_name, namespace)
-    #     tclient.delete(exclusive_name, namespace)
-
+        print("*"*50+"exclusive memory" +"*"*50)
+        print("*"*100)
+        counts = [1,1]
+        memorys = [10,12]
+        tclient.test(counts, memorys, False,task_info)
+    finally:
+        tclient.delete(shared_name, namespace)
+        tclient.delete(exclusive_name, namespace)
 
     # while True:
     #     time.sleep(2)
