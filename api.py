@@ -79,6 +79,7 @@ def create_deployment(task_info, blocking=False):
         }
     }
     return: api_response, is_success(boolean)
+    TODO: 
     '''
     if utils.check(task_info)==False:
         return None,False
@@ -92,7 +93,7 @@ def create_deployment(task_info, blocking=False):
         return None,False
     try: 
         resp = extensions_v1beta1.create_namespaced_deployment(body=data, namespace=namespace)
-        print("Created deployment {name},  status: {status}" .format(name=name,status=resp.status))
+        print("Submit deployment {name},  status: {status}" .format(name=name,status=resp.status))
     except ApiException as e:
         print(e)
         return None, False
@@ -102,32 +103,19 @@ def create_deployment(task_info, blocking=False):
     else:
         # get all pod names of this deployment 
         pod_names = list_deployment_pod_name(namespace, name)
-        while len(pod_names)!=replicas:
+        n = 0
+        while len(pod_names)!=replicas and n < 30:
             time.sleep(2)
+            n +=1
             pod_names = list_deployment_pod_name(namespace, name)
-        
-        running_count = 0
-        for _ in range(submit_retry_time):
-            time.sleep(3)
-            running_count = 0
-            for pod_name in pod_names:
-                v1_pod = get_pod_info(pod_name,namespace)
-                if v1_pod ==None:
-                    continue
-                phase = v1_pod.status.phase
-                if phase =="Running":
-                    running_count += 1
-            if running_count ==len(pod_names):
-                break
-        if running_count ==len(pod_names):
-            print("Start deployment " + name + " successfully! ")
-            return resp, True
-        else:
-            print("Failed to start deployment " + name + " ." + str(running_count) + " pods are running.")
+        if len(pod_names)!=replicas:
+            print("Failed to submit deployment " + name + " ." + str(len(pod_names)) + " pods have been submitted.")
             print("Begin to delete the deployment: " + name)
             delete_deployment(task_info, blocking=True)
             return resp, False
-
+        print("Deployment: " + name + " has been submitted successfully!")
+        return resp, True
+        
 def delete_deployment(task_info,blocking=False):
     '''
     return: api_response,  is_success(boolean)

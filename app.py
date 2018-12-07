@@ -162,21 +162,21 @@ if __name__ == '__main__':
         task_info["owner"] = "qiang.kang"
         task_info["namespace"] = namespace
 
-    print("initializing test environment")
-    shared_name = "shared-gpu"
-    resource = {shared_gpu_name: '3'}
-    utils.set_name(task_info,shared_name)
-    utils.set_resource_limits(task_info, resource)
-    print(task_info)
-    tclient.create_deployment(task_info,blocking=True)
-    names = tclient.list_deployment_pod_name(namespace, shared_name)
-    for name in names:
-        res = tclient.get_pod_info(name, namespace)
-        print("*"*100)
-        print(res)
-        res   = tclient.get_pod_log(name, namespace)
-        print("*"*100)
-        print(res)
+    # print("initializing test environment")
+    # shared_name = "shared-gpu"
+    # resource = {shared_gpu_name: '3'}
+    # utils.set_name(task_info,shared_name)
+    # utils.set_resource_limits(task_info, resource)
+    # print(task_info)
+    # tclient.create_deployment(task_info,blocking=True)
+    # names = tclient.list_deployment_pod_name(namespace, shared_name)
+    # for name in names:
+    #     res = tclient.get_pod_info(name, namespace)
+    #     print("*"*100)
+    #     print(res)
+    #     res   = tclient.get_pod_log(name, namespace)
+    #     print("*"*100)
+    #     print(res)
 
         
     # tclient.delete(shared_name, namespace)
@@ -196,43 +196,43 @@ if __name__ == '__main__':
     # image = "tensorflow/tensorflow:latest-gpu"
     # replicas = 1
 
-    # print("initializing test environment")
-    # shared_name = "shared-gpu"
-    # resource = {shared_gpu_name: '3'}
-    # utils.set_name(task_info,shared_name)
-    # utils.set_resource_limits(task_info, resource)
-    # print(task_info)
-    # tclient.create_deployment(task_info,blocking=True)
-    # exclusive_name = "exclusive-gpu"
-    # resource = {exclusive_gpu_name: '3'}
-    # utils.set_name(task_info, exclusive_name)
-    # utils.set_resource_limits(task_info, resource)
-    # tclient.create_deployment(task_info,blocking=True)
-    # try:
-    #     print("*"*50+"shared count" +"*"*50)
-    #     print("*"*100)
-    #     counts = [1,5,6]
-    #     tclient.test(counts, [0]*len(counts), True, task_info)
+    print("initializing test environment")
+    shared_name = "shared-gpu"
+    resource = {shared_gpu_name: '3'}
+    utils.set_name(task_info,shared_name)
+    utils.set_resource_limits(task_info, resource)
+    print(task_info)
+    tclient.create_deployment(task_info,blocking=True)
+    exclusive_name = "exclusive-gpu"
+    resource = {exclusive_gpu_name: '3'}
+    utils.set_name(task_info, exclusive_name)
+    utils.set_resource_limits(task_info, resource)
+    tclient.create_deployment(task_info,blocking=True)
+    try:
+        print("*"*50+"shared count" +"*"*50)
+        print("*"*100)
+        counts = [1,5,6]
+        tclient.test(counts, [0]*len(counts), True, task_info)
         
-    #     print("*"*50+"exclusive count"  +"*"*50)
-    #     print("*"*100)
-    #     counts = [2,4,1]
-    #     tclient.test(counts, [0]*len(counts), False, task_info)
+        print("*"*50+"exclusive count"  +"*"*50)
+        print("*"*100)
+        counts = [2,4,1]
+        tclient.test(counts, [0]*len(counts), False, task_info)
         
-    #     print("*"*50+"shared memory" +"*"*50)
-    #     print("*"*100)
-    #     counts = [2,2,3,5,5]
-    #     memorys = [20,30,30,50,60]
-    #     tclient.test(counts, memorys, True,task_info)
+        print("*"*50+"shared memory" +"*"*50)
+        print("*"*100)
+        counts = [2,2,3,5,5]
+        memorys = [20,30,30,50,60]
+        tclient.test(counts, memorys, True,task_info)
 
-    #     print("*"*50+"exclusive memory" +"*"*50)
-    #     print("*"*100)
-    #     counts = [1,1]
-    #     memorys = [10,12]
-    #     tclient.test(counts, memorys, False,task_info)
-    # finally:
-    #     tclient.delete(shared_name, namespace)
-    #     tclient.delete(exclusive_name, namespace)
+        print("*"*50+"exclusive memory" +"*"*50)
+        print("*"*100)
+        counts = [1,1]
+        memorys = [10,12]
+        tclient.test(counts, memorys, False,task_info)
+    finally:
+        tclient.delete(shared_name, namespace)
+        tclient.delete(exclusive_name, namespace)
 
 
     # while True:
