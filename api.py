@@ -87,6 +87,9 @@ def create_deployment(task_info, blocking=False):
     data = task_info.get("data") # dict parsed from yaml 
     name = data.get("metadata").get("name")
     replicas = int(data.get("spec").get("replicas"))
+    if get_deployment_info(name, namespace)!=None:
+        print("deployment: namespace:{a}, name:{b} has been running. Please change your deployment name.".format(a=namespace, b=name) )
+        return None,False
     try: 
         resp = extensions_v1beta1.create_namespaced_deployment(body=data, namespace=namespace)
         print("Created deployment {name},  status: {status}" .format(name=name,status=resp.status))
@@ -234,12 +237,6 @@ def get_node_labels(node_name):
         metadata = v1_node.metadata
         return metadata.labels
 
-def get_pod_log(name, namespace):
-    '''
-    TODO: get_pod_log
-    '''
-    pass
-
 
 # get functions
 def get_node_info(node_name):
@@ -280,7 +277,21 @@ def get_pod_info(name, namespace):
     except ApiException as e:
         print(e)
         return None
-
+    
+def get_pod_log(name, namespace):
+    '''
+    :parameter:name, pod name
+    TODO: get_pod_log
+    :return:str, pod'log
+    '''
+    try:
+        pretty = 'true'
+        res = core_v1.read_namespaced_pod_log(name, namespace,pretty=pretty)
+        return res
+    except ApiException as e:
+        print(e)
+        return None
+    
 # Get container tty
 def get_container_tty(namespace, pod, container=None):
     command = "kubectl -n {namespace} exec -it {pod}  {contianer} /bin/bash".format(namespace=namespace, pod=pod, container="" if container==None else "-c "+container)
