@@ -8,7 +8,7 @@ import time
 
 class Tclient(object):
 
-    def create_deployment(self, task_info, blocking=False):
+    def create_container(self,task_info, blocking=False):
         '''
             task_info:
             {
@@ -16,51 +16,102 @@ class Tclient(object):
                 'owner':'hua.li'
                 'namespace':'default'
             }
-
             task_info['data']:
-            {
-                "kind": "Deployment",
-                "spec": {
-                    "selector": {
-                    "matchLabels": { 
-                        "app": "tensorflow"  # !!! selector
-                    }
-                    },
-                    "template": {
+                {
+                    "kind": "Pod", 
                     "spec": {
                         "containers": [
-                        {
-                            "image": "tensorflow/tensorflow:latest-gpu",
-                            "name": "tensorflow-container-name",  
-                            "resources": {
-                            "limits": {
-                                "nvidia.com/shared-gpu": "1",
-                                "nvidia.com/gpu-memory": "1Gi",     # ATENTION!!!!
+                            {
+                                "name": "tensorflow", 
+                                "env": [
+                                    
+                                ], 
+                                "image": "tensorflow/tensorflow:latest-gpu", 
+                                "volumeMounts": [
+                                
+                                ], 
+                                "resources": {
+                                    "limits": {
+                                    }
+                                }
                             }
-                            }
+                        ], 
+                        "volumes": [
+                        
+                        ], 
+                        "nodeSelector": {
+                            
                         }
-                        ]
-                    },
+                    }, 
+                    "apiVersion": "v1", 
                     "metadata": {
-                        "labels": {
-                        "app": "tensorflow"   # !!! pod label
-                        },
-                        "annotations": {
-                        "shared-gpu-max-toleration": "22"
-                        }
+                        "name": "shared-pod"
                     }
-                    },
-                    "replicas": 1
-                },
-                "apiVersion": "extensions/v1beta1",
-                "metadata": {
-                    "name": "gpu"   # !!!   deployment's name
                 }
-            }
         '''
-        return create_deployment(task_info,blocking)
+        return self.submit_pod(task_info, blocking)
+    
+    def kill_container(self, data, blocking=False):
+        '''
+        data:{
+            'owner': 'hua.li',
+            'data': {
+                'name': 'test',  # container_name 
+                'namespace': 'test_namespace'
+            }
+        }
+        '''
+        name = data['data']['name']
+        namespace = data.get("data").get("namespace") if  data.get("data").get("namespace") else "default"
+        return self.delete(name, namespace, blocking)
 
-    def delete_deployment(self,task_info,blocking=False):
+    def resume_container(self, task_info, blocking=False):
+        return resume_pod(task_info, blocking)
+
+    def submit_pod(self, task_info, blocking=False):
+        '''
+            task_info:
+            {
+                'data':{} dict data parsed from yaml file
+                'owner':'hua.li'
+                'namespace':'default'
+            }
+            task_info['data']:
+                {
+                    "kind": "Pod", 
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "tensorflow", 
+                                "env": [
+                                    
+                                ], 
+                                "image": "tensorflow/tensorflow:latest-gpu", 
+                                "volumeMounts": [
+                                
+                                ], 
+                                "resources": {
+                                    "limits": {
+                                    }
+                                }
+                            }
+                        ], 
+                        "volumes": [
+                        
+                        ], 
+                        "nodeSelector": {
+                            
+                        }
+                    }, 
+                    "apiVersion": "v1", 
+                    "metadata": {
+                        "name": "shared-pod"
+                    }
+                }
+        '''
+        return submit_pod(task_info,blocking)
+
+    def delete_pod(self,task_info,blocking=False):
         """
             :param name: deploy_name
             {
@@ -69,24 +120,13 @@ class Tclient(object):
             }
             :return:
         """
-        return delete_deployment(task_info, blocking)
+        return delete_pod(task_info, blocking)
 
     def delete(self,name, namespace, blocking=False):
         return delete(name, namespace, blocking=blocking)
     
-    def resume_deployment(self, task_info, blocking=False):
-        return resume_deployment(task_info, blocking)
-
-    def get_deployment(self, name, namespace):
-        """
-            :param name namespace: get one deployment
-            :return:
-            {
-                name: "redis"
-                namespace: "default"
-            }
-        """
-        return get_deployment_info(name,namespace)
+    def resume_pod(self, task_info, blocking=False):
+        return resume_pod(task_info, blocking)
 
     def get_pod_info(self, name, namespace):
         return get_pod_info(name, namespace)
@@ -94,13 +134,6 @@ class Tclient(object):
     def get_pod_log(self, name, namespace):
         return get_pod_log(name, namespace)
     
-    def list_deployments(self, namespace=None):
-        """
-            :param namespace: None or string. When None, get_all_deployments_for_all_namespaces
-            :return: 
-        """
-        return list_deployments(namespace=namespace)
-        
     def list_node(self):
         return list_node()
 
@@ -120,14 +153,8 @@ class Tclient(object):
         return resp
 
     def list_node_labels(self):
-        return  list_node_labels()
+        return list_node_labels()
     
-    def list_deployment_pod(self, namespace, deployment_name):
-        return list_deployment_pod(namespace, deployment_name)
-
-    def list_deployment_pod_name(self, namespace, deployment_name):
-        return list_deployment_pod_name(namespace, deployment_name)
-
     def test(self,counts, memorys,shared,task_info,replicas=1):
         test_gpu_name = shared_gpu_name if shared else exclusive_gpu_name
         for i in range(len(counts)):
@@ -136,18 +163,18 @@ class Tclient(object):
                     gpu_memory_name: '{}Mi'.format(memorys[i]*1024)
             }
             name = "{mode}-c-{count}-m-{memory}".format(mode="shared" if shared else "exclusive", count=counts[i], memory=memorys[i])
-            utils.set_name(task_info, name)
-            utils.set_resource_limits(task_info, resource)
-            _, result = self.create_deployment(task_info, blocking=True)
+            utils.set_name(task_info["data"], name)
+            utils.set_resources(task_info["data"], resource)
+            print("pod " + name)
+            print(resource)
+            _, result = self.submit_pod(task_info, blocking=True)
             if result==False:
                 # Failed to start the deployment, delete the deployment
                 self.delete(name, namespace, blocking=True) 
                 continue
-            podNames = self.list_deployment_pod_name(namespace,name)
-            print("PodNames: " + str(podNames))
-            phase = get_pod_info(podNames[0],namespace).status.phase
-            print("Pods phase: " + phase)
-            time.sleep(15)
+            phase = get_pod_info(name,namespace).status.phase
+            print("Pod phase: " + phase)
+            time.sleep(1000)
             self.list_node_allocatable_resources()
             self.list_node_allocated_resources()      
             self.delete(name, namespace,blocking=True)
@@ -156,11 +183,9 @@ if __name__ == '__main__':
     tclient = Tclient()
     task_info = {}
     namespace = "default"
-    with open("./shared-gpu.yaml") as f:
-        data=yaml.load(f)
-        task_info["data"] = data
-        task_info["owner"] = "qiang.kang"
-        task_info["namespace"] = namespace
+    task_info["data"] = utils.pod_template
+    task_info["owner"] = "qiang.kang"
+    task_info["namespace"] = namespace
 
     # print("initializing test environment")
     # shared_name = "shared-gpu"
@@ -178,7 +203,6 @@ if __name__ == '__main__':
     #     print("*"*100)
     #     print(res)
 
-        
     # tclient.delete(shared_name, namespace)
     # print(get_node_labels("tusimple"))
     # append_or_update_node_label("tusimple", "foo", "bar1")
@@ -191,7 +215,7 @@ if __name__ == '__main__':
     # print(get_node_labels("tusimple"))
     # append_or_update_node_label("tusimple", "foo", "bar2")
 
-    # tclient = Tclient()
+    # tclient.submit_pod(utils.convert_tuyaco_dict_to_task_info(), True)
     # namespace = "default"
     # image = "tensorflow/tensorflow:latest-gpu"
     # replicas = 1
@@ -199,19 +223,19 @@ if __name__ == '__main__':
     print("initializing test environment")
     shared_name = "shared-gpu"
     resource = {shared_gpu_name: '3'}
-    utils.set_name(task_info,shared_name)
-    utils.set_resource_limits(task_info, resource)
+    utils.set_name(task_info["data"],shared_name)
+    utils.set_resources(task_info["data"], resource)
     print(task_info)
-    tclient.create_deployment(task_info,blocking=True)
+    tclient.submit_pod(task_info,blocking=True)
     exclusive_name = "exclusive-gpu"
     resource = {exclusive_gpu_name: '3'}
-    utils.set_name(task_info, exclusive_name)
-    utils.set_resource_limits(task_info, resource)
-    tclient.create_deployment(task_info,blocking=True)
+    utils.set_name(task_info["data"], exclusive_name)
+    utils.set_resources(task_info["data"], resource)
+    tclient.submit_pod(task_info,blocking=True)
     try:
         print("*"*50+"shared count" +"*"*50)
         print("*"*100)
-        counts = [1,5,6]
+        counts = [5,6]
         tclient.test(counts, [0]*len(counts), True, task_info)
         
         print("*"*50+"exclusive count"  +"*"*50)
@@ -233,7 +257,6 @@ if __name__ == '__main__':
     finally:
         tclient.delete(shared_name, namespace)
         tclient.delete(exclusive_name, namespace)
-
 
     # while True:
     #     time.sleep(2)

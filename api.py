@@ -5,6 +5,8 @@ from kubernetes.client.rest import ApiException
 import os
 import utils
 import time
+import re
+
 
 config.load_kube_config()
 extensions_v1beta1 = client.ExtensionsV1beta1Api()
@@ -23,145 +25,146 @@ gpu_devices_name = "nvidia.com/gpu-devices"
 shared_cpu_name ='tusimple.com/shared-cpu'
 exclusive_cpu_name = "tusimple.com/exclusive-cpu"
 
-submit_retry_time = 5
+submit_retry_time = 20
 
 # extensionsV1beta1Api
 # Tips: Deployment's pod only included 1 container
-def create_deployment(task_info, blocking=False):
-    '''
-    task_info:
-    {
-        'data':{} dict data parsed from yaml file
-        'owner':'hua.li',
-        'namespace':'default',
-        'timestamp':
+# def create_deployment(task_info, blocking=False):
+#     '''
+#     task_info:
+#     {
+#         'data':{} dict data parsed from yaml file
+#         'owner':'hua.li',
+#         'namespace':'default',
+#         'timestamp':
 
-    }
+#     }
 
-    task_info['data']:
-    {
-        "kind": "Deployment",
-        "spec": {
-            "selector": {
-            "matchLabels": { 
-                "app": "tensorflow"  # !!! selector
-            }
-            },
-            "template": {
-            "spec": {
-                "containers": [
-                {
-                    "image": "tensorflow/tensorflow:latest-gpu",
-                    "name": "tensorflow-container-name",  
-                    "resources": {
-                    "limits": {
-                        "nvidia.com/shared-gpu": "1",
-                        "nvidia.com/gpu-memory": "1Gi",
-                    }
-                    }
-                }
-                ]
-            },
-            "metadata": {
-                "labels": {
-                "app": "tensorflow"   # !!! pod label
-                },
-                "annotations": {
-                "shared-gpu-max-toleration": "22"
-                }
-            }
-            },
-            "replicas": 1
-        },
-        "apiVersion": "extensions/v1beta1",
-        "metadata": {
-            "name": "gpu"   # !!!   deployment's name
-        }
-    }
-    return: api_response, is_success(boolean)
-    TODO: 
-    '''
-    if utils.check(task_info)==False:
-        return None,False
-    owner = task_info.get("owner")
-    namespace  = task_info.get("namespace")
-    data = task_info.get("data") # dict parsed from yaml 
-    name = data.get("metadata").get("name")
-    replicas = int(data.get("spec").get("replicas"))
-    if get_deployment_info(name, namespace)!=None:
-        print("deployment: namespace:{a}, name:{b} has been running. Please change your deployment name.".format(a=namespace, b=name) )
-        return None,False
-    try: 
-        resp = extensions_v1beta1.create_namespaced_deployment(body=data, namespace=namespace)
-        print("Submit deployment {name},  status: {status}" .format(name=name,status=resp.status))
-    except ApiException as e:
-        print(e)
-        return None, False
+#     task_info['data']:
+#     {
+#         "kind": "Deployment",
+#         "spec": {
+#             "selector": {
+#             "matchLabels": { 
+#                 "app": "tensorflow"  # !!! selector
+#             }
+#             },
+#             "template": {
+#             "spec": {
+#                 "containers": [
+#                 {
+#                     "image": "tensorflow/tensorflow:latest-gpu",
+#                     "name": "tensorflow-container-name",  
+#                     "resources": {
+#                     "limits": {
+#                         "nvidia.com/shared-gpu": "1",
+#                         "nvidia.com/gpu-memory": "1Gi",
+#                     }
+#                     }
+#                 }
+#                 ]
+#             },
+#             "metadata": {
+#                 "labels": {
+#                 "app": "tensorflow"   # !!! pod label
+#                 },
+#                 "annotations": {
+#                 "shared-gpu-max-toleration": "22"
+#                 }
+#             }
+#             },
+#             "replicas": 1
+#         },
+#         "apiVersion": "extensions/v1beta1",
+#         "metadata": {
+#             "name": "gpu"   # !!!   deployment's name
+#         }
+#     }
+#     return: api_response, is_success(boolean)
+#     '''
+#     if utils.check(task_info)==False:
+#         return None,False
+#     owner = task_info.get("owner")
+#     namespace  = task_info.get("namespace")
+#     data = task_info.get("data") # dict parsed from yaml 
+#     name = data.get("metadata").get("name")
+#     replicas = int(data.get("spec").get("replicas"))
+#     if get_deployment_info(name, namespace)!=None:
+#         print("deployment: namespace:{a}, name:{b} has been running. Please change your deployment name.".format(a=namespace, b=name) )
+#         return None,False
+#     try: 
+#         resp = extensions_v1beta1.create_namespaced_deployment(body=data, namespace=namespace)
+#         print("Submit deployment {name},  status: {status}" .format(name=name,status=resp.status))
+#     except ApiException as e:
+#         print(e)
+#         return None, False
     
-    if blocking==False:
-        return resp, True
-    else:
-        # get all pod names of this deployment 
-        pod_names = list_deployment_pod_name(namespace, name)
-        n = 0
-        while len(pod_names)!=replicas and n < 30:
-            time.sleep(2)
-            n +=1
-            pod_names = list_deployment_pod_name(namespace, name)
-        if len(pod_names)!=replicas:
-            print("Failed to submit deployment " + name + " ." + str(len(pod_names)) + " pods have been submitted.")
-            print("Begin to delete the deployment: " + name)
-            delete_deployment(task_info, blocking=True)
-            return resp, False
-        print("Deployment: " + name + " has been submitted successfully!")
-        return resp, True
-        
-def delete_deployment(task_info,blocking=False):
-    '''
-    return: api_response,  is_success(boolean)
-    '''
-    # Delete deployment
-    if utils.check(task_info)==False:
-        return None,False
-    namespace  = task_info.get("namespace")
-    data = task_info.get("data") # dict parsed from yaml 
-    name = data.get("metadata").get("name")
-    return delete(name, namespace,blocking=blocking)
+#     if blocking==False:
+#         return resp, True
+#     else:
+#         # get all pod names of this deployment 
+#         pod_names = list_deployment_pod_name(namespace, name)
+#         n = 0
+#         while len(pod_names)!=replicas and n < 30:
+#             time.sleep(2)
+#             n +=1
+#             pod_names = list_deployment_pod_name(namespace, name)
+#         if len(pod_names)!=replicas:
+#             print("Failed to submit deployment " + name + " ." + str(len(pod_names)) + " pods have been submitted.")
+#             print("Begin to delete the deployment: " + name)
+#             delete_deployment(task_info, blocking=True)
+#             return resp, False
+#         print("Deployment: " + name + " has been submitted successfully!")
+#         return resp, True
 
-def delete(name, namespace, blocking=False):
-    print("Deleting deployment " + name)
-    try:
-        api_response = extensions_v1beta1.delete_namespaced_deployment(
-            name = name,
-            namespace = namespace,
-            body=client.V1DeleteOptions(
-                propagation_policy='Foreground',
-                grace_period_seconds=3))
-    except ApiException as e:
-        print(e)
-        return None, False
-    if blocking==False:
-        return api_response, True
-    else:
-        while get_deployment_info(name, namespace)!=None:
-            time.sleep(3)
-        print("Delete deployment " + name  + " successfully!")
-        return api_response,True
+
+# def delete_deployment(task_info,blocking=False):
+#     '''
+#     return: api_response,  is_success(boolean)
+#     '''
+#     # Delete deployment
+#     if utils.check(task_info)==False:
+#         return None,False
+#     namespace  = task_info.get("namespace")
+#     data = task_info.get("data") # dict parsed from yaml 
+#     name = data.get("metadata").get("name")
+#     return delete(name, namespace,blocking=blocking)
+
+# def delete(name, namespace, blocking=False):
+#     print("Deleting deployment " + name)
+#     try:
+#         api_response = extensions_v1beta1.delete_namespaced_deployment(
+#             name = name,
+#             namespace = namespace,
+#             body=client.V1DeleteOptions(
+#                 propagation_policy='Foreground',
+#                 grace_period_seconds=3))
+#     except ApiException as e:
+#         print(e)
+#         return None, False
+#     if blocking==False:
+#         return api_response, True
+#     else:
+#         while get_deployment_info(name, namespace)!=None:
+#             time.sleep(3)
+#         print("Delete deployment " + name  + " successfully!")
+#         return api_response,True
     
-def resume_deployment(task_info, blocking=False):
-    '''
-    return: api_response, is_success(boolean)
-    '''
-    if utils.check(task_info)==False:
-        return None,False
-    data = task_info.get("data")
-    namespace = task_info.get("namespace")
-    name = data.get("metadata").get("name")
-    if get_deployment_info(name, namespace)==None:
-        return create_deployment(task_info, blocking)
-    else:
-        print("Current deployment {name} is still running. Can not resume the deployment.".format(name))
-        return None,False
+# def resume_deployment(task_info, blocking=False):
+#     '''
+#     return: api_response, is_success(boolean)
+#     '''
+#     if utils.check(task_info)==False:
+#         return None,False
+#     data = task_info.get("data")
+#     namespace = task_info.get("namespace")
+#     name = data.get("metadata").get("name")
+#     if get_deployment_info(name, namespace)==None:
+#         return create_deployment(task_info, blocking)
+#     else:
+#         print("Current deployment {name} is still running. Can not resume the deployment.".format(name))
+#         return None,False
+
 
 # def replace_deployment(task_info):
 #     if utils.check(task_info)==False:
@@ -177,11 +180,76 @@ def resume_deployment(task_info, blocking=False):
 #         return None
 
 
+def submit_pod(task_info, blocking=False):
+    namespace = task_info.get("namespace") if  task_info.get("namespace")!=None else "default"
+    owner = task_info.get("owner")
+    data = task_info.get("data")
+    name = data.get("metadata").get("name")
+    try:
+        resp = core_v1.create_namespaced_pod(namespace, body=data)
+    except ApiException as e:
+        print(e)
+        return None, False
+    pod =None
+    n=0
+    while pod==None or pod.status.phase !="Running":
+        pod = get_pod_info(name, namespace)
+        time.sleep(2)
+        n+=1
+        if n > submit_retry_time:
+            print("Failed to start pod " + name)
+            delete(name, namespace,blocking=True)
+            return None, False
+    print("Submit pod " + name + " successfully!")
+    return resp, True
+    
+def delete_pod(task_info, blocking=False):
+    namespace  = task_info.get("namespace") if task_info.get("namespace")!=None else "default"
+    data = task_info.get("data") # dict parsed from yaml 
+    name = data.get("metadata").get("name")
+    return delete(name, namespace,blocking=blocking)
 
-def append_or_update_node_label(node_name, label_k, label_v):
+def delete(name, namespace, blocking=False):
+    print("Deleting pod " + name)
+    try:
+        api_response = core_v1.delete_namespaced_pod(
+            name = name,
+            namespace = namespace,
+            body=client.V1DeleteOptions(
+                propagation_policy='Foreground',
+                grace_period_seconds=3))
+    except ApiException as e:
+        print(e)
+        return None, False
+    if blocking==False:
+        return api_response, True
+    else:
+        while get_pod_info(name, namespace)!=None:
+            time.sleep(3)
+        print("Delete pod " + name  + " successfully!")
+        return api_response,True
+
+def resume_pod(task_info, blocking=False):
+    '''
+    return: api_response, is_success(boolean)
+    '''
+    data = task_info.get("data") 
+    namespace = task_info.get("namespace") if task_info.get("namespace")!=None else "default"
+    name = data.get("metadata").get("name")
+    if get_pod_info(name, namespace)==None:
+        return submit_pod(task_info, blocking)
+    else:
+        print("Current pod {name} is still running. Can not resume the pod.".format(name))
+        return None,False
+
+def append_or_update_node_label(node_name, label_k, label_v=None):
     '''
     :return: api_response or None 
     '''    
+    if label_v == None:
+        label_v = label_k
+    label_k = re.sub(r"\s+", "-", label_k)
+    label_v = re.sub(r"\s+", "-", label_v)
     body = {
     "metadata": {
         "labels": {
@@ -235,22 +303,6 @@ def get_node_info(node_name):
         api_response = core_v1.read_node(node_name, pretty="true")
         return api_response
     except ApiException as e:
-        print(e)
-        return None
-
-def get_deployment_info(name, namespace):
-    '''
-    :return: ExtensionsV1beta1Deployment
-            If the method is called asynchronously,
-            returns the request thread.
-    TODO: Append pod's info to deployment info
-    '''
-    try:
-        api_response = extensions_v1beta1.read_namespaced_deployment(name = name, namespace = namespace)
-        return api_response
-    except ApiException as e:
-        if str(e.status) == "404" and e.reason =="Not Found":
-            print("Deployment " + name + " not found.")
         print(e)
         return None
 
@@ -338,7 +390,6 @@ def list_node_allocated_resources():
         print(e)
         return None
 
-
 # return dict{k:node_name, v:dict{}}
 def list_node_allocatable_resources():
     '''
@@ -392,50 +443,6 @@ def list_node_pod(node_name):
     try:
         res = core_v1.list_pod_for_all_namespaces(include_uninitialized=True, field_selector=field_selector)
         return res
-    except ApiException as e:
-        print(e)
-        return None
-
-def list_deployment_pod(namespace, deployment_name):
-    '''
-    :return: v1PodList or None
-    '''
-    # make sure that pod's label equals deployment name   
-    label_selector = 'app='+deployment_name
-    try:
-        res = core_v1.list_namespaced_pod(namespace=namespace, include_uninitialized=True, label_selector= label_selector)
-        return res
-    except ApiException as e:
-        print(e)
-        return None
-
-def list_deployment_pod_name(namespace, deployment_name):
-    '''
-    :return: list(string)
-    '''
-    res = list_deployment_pod(namespace, deployment_name)
-    names = []
-    if res ==None:
-        return names
-    for item in res.items:
-        names.append(item.metadata.name)
-    return names
-
-
-# list_deployments: list all deployments for all namespaces
-def list_deployments(namespace=None):
-    '''
-    :return: ExtensionsV1beta1DeploymentList
-            If the method is called asynchronously,
-            returns the request thread.
-    '''
-    try:
-        if namespace==None:
-            api_response = extensions_v1beta1.list_deployment_for_all_namespaces()
-            return  api_response
-        else:
-            api_response = extensions_v1beta1.list_namespaced_deployment(namespace = namespace)
-            return api_response
     except ApiException as e:
         print(e)
         return None

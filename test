@@ -1,0 +1,59 @@
+{
+    "kind": "Pod", 
+    "spec": {
+        "containers": [
+            {
+                "command": [
+                    "/bin/sh", 
+                    "-c", 
+                    "echo $(GREETING)"
+                ], 
+                "name": "tensorflow", 
+                "env": [
+                    {
+                        "name": "GREETING", 
+                        "value": "Warm greetings to"
+                    }, 
+                    {
+                        "name": "HONORIFIC", 
+                        "value": "The Most Honorable"
+                    }, 
+                    {
+                        "name": "NAME", 
+                        "value": "Kubernetes"
+                    }
+                ], 
+                "image": "tensorflow/tensorflow:latest-gpu", 
+                "volumeMounts": [
+                    {
+                        "readOnly": true, 
+                        "mountPath": "/notebooks", 
+                        "name": "nginx-vol"
+                    }
+                ], 
+                "resources": {
+                    "limits": {
+                        "nvidia.com/shared-gpu": 3, 
+                        "nvidia.com/gpu-memory": "0Mi"
+                    }
+                }
+            }
+        ], 
+        "volumes": [
+            {
+                "hostPath": {
+                    "path": "/home/tusimple/my_k8s/yamls/gpu-test/initEnv"
+                }, 
+                "name": "nginx-vol"
+            }
+        ], 
+        "nodeSelector": {
+            "node-owner": "kangqiang"
+        }
+    }, 
+    "apiVersion": "v1", 
+    "metadata": {
+        "namespace": "default", 
+        "name": "shared-pod"
+    }
+}
