@@ -3,7 +3,6 @@ from api import *
 
 import yaml
 import utils
-
 import time
 
 class Tclient(object):
@@ -172,13 +171,16 @@ class Tclient(object):
                 # Failed to start the deployment, delete the deployment
                 self.delete(name, namespace, blocking=True) 
                 continue
-            phase = get_pod_info(name,namespace).status.phase
+            pod_status = get_pod_info(name,namespace).status
+            phase = pod_status.phase
+            container_id = pod_status.container_statuses[0].container_id.split("//")[1]
+            r = utils.get_container_GPU(container_id, name)
             print("Pod phase: " + phase)
-            time.sleep(1000)
+            print("Pod GPU: " + r)
             self.list_node_allocatable_resources()
             self.list_node_allocated_resources()      
             self.delete(name, namespace,blocking=True)
-
+            
 if __name__ == '__main__':
     tclient = Tclient()
     task_info = {}

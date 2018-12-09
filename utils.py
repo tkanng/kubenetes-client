@@ -1,7 +1,7 @@
 import copy
 
 import yaml
-
+import commands
 import json
 import re
 task_info_example =  {
@@ -90,6 +90,11 @@ pod_template = {
     }
 }
 
+def get_container_GPU(contianer_id, pod_name):
+    return_code, output = commands.getstatusoutput('docker inspect {} | grep NVIDIA_VISIBLE_DEVICES'.format(contianer_id))
+    r = pod_name + "\n" + output
+    return  r
+    
 def convert_str_to_num(q_str):
     if q_str.isdigit():
         return int(q_str)
