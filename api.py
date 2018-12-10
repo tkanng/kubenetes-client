@@ -25,7 +25,7 @@ gpu_devices_name = "nvidia.com/gpu-devices"
 shared_cpu_name ='tusimple.com/shared-cpu'
 exclusive_cpu_name = "tusimple.com/exclusive-cpu"
 
-submit_retry_time = 20
+submit_retry_time = 60
 
 # extensionsV1beta1Api
 # Tips: Deployment's pod only included 1 container
@@ -181,6 +181,9 @@ submit_retry_time = 20
 
 
 def submit_pod(task_info, blocking=False):
+    '''
+    :return: V1Pod, is_success(boolean)
+    '''
     namespace = task_info.get("namespace") if  task_info.get("namespace")!=None else "default"
     owner = task_info.get("owner")
     data = task_info.get("data")
@@ -204,12 +207,22 @@ def submit_pod(task_info, blocking=False):
     return resp, True
     
 def delete_pod(task_info, blocking=False):
+    '''
+    :param name: pod's name
+    :param namespace: namespace
+    :return: V1Status, is_success(boolean)
+    '''
     namespace  = task_info.get("namespace") if task_info.get("namespace")!=None else "default"
     data = task_info.get("data") # dict parsed from yaml 
     name = data.get("metadata").get("name")
     return delete(name, namespace,blocking=blocking)
 
 def delete(name, namespace, blocking=False):
+    '''
+    :param name: pod's name
+    :param namespace: namespace
+    :return: V1Status, is_success(boolean)
+    '''
     print("Deleting pod " + name)
     try:
         api_response = core_v1.delete_namespaced_pod(
@@ -231,7 +244,7 @@ def delete(name, namespace, blocking=False):
 
 def resume_pod(task_info, blocking=False):
     '''
-    return: api_response, is_success(boolean)
+    return: v1Pod, is_success(boolean)
     '''
     data = task_info.get("data") 
     namespace = task_info.get("namespace") if task_info.get("namespace")!=None else "default"
@@ -285,7 +298,17 @@ def remove_node_label(node_name, label_k):
 
 def get_node_labels(node_name):
     '''
-    :return: node's labels
+    get node's labels
+    :return: node's labels dict(str, str)
+    {
+        u'GeForce-GTX-1080': 'GeForce-GTX-1080',  # to satisfy tuyaco's feature, key equals value
+        u'beta.kubernetes.io/os': 'linux', 
+        u'label-key': 'label-v', 
+        u'kubernetes.io/hostname': 'tusimple', 
+        u'node-owner': 'kangqiang', 
+        u'foo': 'bar2', 
+        u'beta.kubernetes.io/arch': 'amd64'
+    }
     '''
     v1_node = get_node_info(node_name)
     if v1_node==None:
@@ -321,7 +344,6 @@ def get_pod_info(name, namespace):
 def get_pod_log(name, namespace):
     '''
     :parameter:name, pod name
-    TODO: get_pod_log
     :return:str, pod'log
     '''
     try:
@@ -336,7 +358,6 @@ def get_pod_log(name, namespace):
 def get_container_tty(namespace, pod, container=None):
     command = "kubectl -n {namespace} exec -it {pod}  {contianer} /bin/bash".format(namespace=namespace, pod=pod, container="" if container==None else "-c "+container)
     os.system(command)
-
 
 # list functions 
 def list_node():

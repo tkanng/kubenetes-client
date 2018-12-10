@@ -252,47 +252,7 @@ def set_node_selector(pod_dict, node_selector):
     pod_dict["spec"]["nodeSelector"] = node_selector
 
 
-def convert_tuyaco_dict_to_task_info():
-    data={
-        'owner': 'jack.ma',
-        'namespace':'default',
-        'data': {
-            'config': {
-                'cpu': {
-                    'count': 8,
-                    'shared': True
-                },
-                'mem': {
-                    'amount': 8192,
-                    'shared': True
-                },
-                'gpu': {
-                    'count': 4,
-                    'mem': 4096,
-                    'labels': ['GeForce GTX 1080'],  # labels
-                    'shared': False
-                },
-                'volumes': [
-                    "/home/tusimple/my_k8s/k8s-client/kuyaco:/notebooks:ro"
-                ],
-                'image': 'tensorflow/tensorflow:latest-gpu',
-                'labels': [],     
-                'hosts': [
-                    "tusimple"
-                ],
-                'hostname':'octopus3-sliu-0614',
-                'allocate_ip': True,
-                'environments': [
-                    'NAME=VALUE'
-                ],
-                'shm_size': '8G',
-                'ipc_mode': 'host',
-                'waiting': False,
-                'reschedule': 0
-            },
-        }
-    }
-
+def convert_tuyaco_dict_to_task_info(data):
     configs = data["data"]["config"]
     cpu = configs.get("cpu")
     mem = configs.get("mem")
@@ -300,8 +260,8 @@ def convert_tuyaco_dict_to_task_info():
     volumes = configs.get("volumes")
     image = configs.get("image")  
     command = configs.get("command")
-    labels = configs.get("labels") if configs.get("labels")!=None else [] # ==> k8s node_selector + gpu label
-    hosts = configs.get("hosts")  # node_selector ===> "kubernetes.io/hostname=gke-x1"
+    labels = configs.get("labels") if configs.get("labels")!=None else [] # ==> k8s node_selector + gpu label list
+    hosts = configs.get("hosts")  # [] node_selector ===> "kubernetes.io/hostname=gke-x1" 
     name = configs.get("hostname")
     environment = configs.get("environments") # []
 
@@ -342,10 +302,12 @@ def convert_tuyaco_dict_to_task_info():
     set_node_selector(pod_dict, node_selector)
 
     task_info = {}
+    # task_info = copy.deepcopy(data)
+    # task_info["pod_dict"] = pod_dict
     task_info["data"] = pod_dict
-    task_info["owner"] = data["owner"]
+    task_info["owner"] = data.get("owner")
     task_info["namespace"] =data.get("namespace")
-    task_info["allocate_ip"] = configs.get("allocate_ip")
+    task_info["allocate_ip"] = configs.get("allocate_ip")  # boolean
     task_info["shm_size"] = configs.get("shm_size")
     task_info["ipc_mode"] = configs.get("ipc_mode")
     task_info["protective"] = configs.get("protective")
@@ -353,9 +315,51 @@ def convert_tuyaco_dict_to_task_info():
     task_info["waiting"] = configs.get("waiting")
     task_info["reschedule"] = configs.get("reschedule")
     task_info["push_after_finish"] = configs.get("push_after_finish")
+
     return task_info
 
 
 # a = convert_tuyaco_dict_to_task_info()
 # print(a["data"])
 # print(pod_template)
+
+
+data={
+    'owner': 'jack.ma',
+    'namespace':'default',
+    'data': {
+        'config': {
+            'cpu': {
+                'count': 8,
+                'shared': True
+            },
+            'mem': {
+                'amount': 8192,
+                'shared': True
+            },
+            'gpu': {
+                'count': 4,
+                'mem': 4096,
+                'labels': ['GeForce GTX 1080'],  # labels
+                'shared': False
+            },
+            'volumes': [
+                "/home/tusimple/my_k8s/k8s-client/kuyaco:/notebooks:ro"
+            ],
+            'image': 'tensorflow/tensorflow:latest-gpu',
+            'labels': [],     
+            'hosts': [
+                "tusimple"
+            ],
+            'hostname':'octopus3-sliu-0614',
+            'allocate_ip': True,
+            'environments': [
+                'NAME=VALUE'
+            ],
+            'shm_size': '8G',
+            'ipc_mode': 'host',
+            'waiting': False,
+            'reschedule': 0
+        },
+    }
+}

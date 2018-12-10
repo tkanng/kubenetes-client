@@ -7,47 +7,55 @@ import time
 
 class Tclient(object):
 
-    def create_container(self,task_info, blocking=False):
+
+    def create_container(self,data, blocking=False):
         '''
-            task_info:
-            {
-                'data':{} dict data parsed from yaml file
-                'owner':'hua.li'
-                'namespace':'default'
+        :param blocking: blocking API
+        :param data: {
+            'owner': 'jack.ma',
+            'data': {
+                'config': {
+                    'cpu': {
+                        'count': 8,
+                        'shared': True
+                    },
+                    'mem': {
+                        'amount': 8192,
+                        'shared': True
+                    },
+                    'gpu': {
+                        'count': 4,
+                        'mem': 4096,
+                        'labels': ['GeForce GTX 1080'],
+                        'shared': False
+                    },
+                    'volumes': [
+                        '/mnt:/mnt:slave',
+                        '/etc/timezone:/etc/timezone:ro',
+                        '/etc/localtime:/etc/localtime:ro'
+                    ],
+                    'image': 'registry.tusimple.ai/dope:lingting',
+                    'command': 'echo helloworld',
+                    'labels': ['general', 'retired']
+                    'hosts': [
+                        'super5.sd.tusimple.ai',
+                        'super6.sd.tusimple.ai'
+                    ],
+                    'hostname' = 'octopus3-sliu-0614',
+                    'allocate_ip': True,
+                    'environments': [
+                        'NAME=VALUE'
+                    ],
+                    'shm_size': '8G',
+                    'ipc_mode': 'host',
+                    'waiting': False,
+                    'reschedule': 0
+                },
             }
-            task_info['data']:
-                {
-                    "kind": "Pod", 
-                    "spec": {
-                        "containers": [
-                            {
-                                "name": "tensorflow", 
-                                "env": [
-                                    
-                                ], 
-                                "image": "tensorflow/tensorflow:latest-gpu", 
-                                "volumeMounts": [
-                                
-                                ], 
-                                "resources": {
-                                    "limits": {
-                                    }
-                                }
-                            }
-                        ], 
-                        "volumes": [
-                        
-                        ], 
-                        "nodeSelector": {
-                            
-                        }
-                    }, 
-                    "apiVersion": "v1", 
-                    "metadata": {
-                        "name": "shared-pod"
-                    }
-                }
+        }
+        :return: V1Pod, is_success(boolean)
         '''
+        task_info = utils.convert_tuyaco_dict_to_task_info(data)
         return self.submit_pod(task_info, blocking)
     
     def kill_container(self, data, blocking=False):
@@ -64,7 +72,8 @@ class Tclient(object):
         namespace = data.get("data").get("namespace") if  data.get("data").get("namespace") else "default"
         return self.delete(name, namespace, blocking)
 
-    def resume_container(self, task_info, blocking=False):
+    def resume_container(self, data, blocking=False):
+        task_info = utils.convert_tuyaco_dict_to_task_info(data)
         return resume_pod(task_info, blocking)
 
     def submit_pod(self, task_info, blocking=False):
@@ -112,18 +121,14 @@ class Tclient(object):
 
     def delete_pod(self,task_info,blocking=False):
         """
-            :param name: deploy_name
-            {
-                namespace: "default"
-                name: "redis"
-            }
-            :return:
+        :param task_info: 
+        :return:
         """
         return delete_pod(task_info, blocking)
 
     def delete(self,name, namespace, blocking=False):
         return delete(name, namespace, blocking=blocking)
-    
+
     def resume_pod(self, task_info, blocking=False):
         return resume_pod(task_info, blocking)
 
@@ -162,6 +167,7 @@ class Tclient(object):
                     gpu_memory_name: '{}Mi'.format(memorys[i]*1024)
             }
             name = "{mode}-c-{count}-m-{memory}".format(mode="shared" if shared else "exclusive", count=counts[i], memory=memorys[i])
+            namespace = task_info.get("namespace") if task_info.get("namespace")!=None else "default" 
             utils.set_name(task_info["data"], name)
             utils.set_resources(task_info["data"], resource)
             print("pod " + name)
@@ -182,13 +188,27 @@ class Tclient(object):
             self.delete(name, namespace,blocking=True)
             
 if __name__ == '__main__':
-    tclient = Tclient()
-    task_info = {}
-    namespace = "default"
-    task_info["data"] = utils.pod_template
-    task_info["owner"] = "qiang.kang"
-    task_info["namespace"] = namespace
-
+    # tclient = Tclient()
+    # task_info = {}
+    # namespace = "default"
+    # task_info["data"] = utils.pod_template
+    # task_info["owner"] = "qiang.kang"
+    # task_info["namespace"] = namespace
+    # try:     
+    #     tclient.create_container(utils.data, blocking=True)
+    #     time.sleep(100000)
+    # finally:
+    #     name = utils.data.get("data").get("config").get("hostname")
+    #     data = {
+    #         "owner":"qiang.kang",
+    #         "data":{
+    #             'name':name,
+    #             'namespace':"default"
+    #         }
+    #     }
+    #     tclient.kill_container(data, blocking=True)
+    
+    print(get_node_labels("tusimple"))
     # print("initializing test environment")
     # shared_name = "shared-gpu"
     # resource = {shared_gpu_name: '3'}
@@ -222,43 +242,43 @@ if __name__ == '__main__':
     # image = "tensorflow/tensorflow:latest-gpu"
     # replicas = 1
 
-    print("initializing test environment")
-    shared_name = "shared-gpu"
-    resource = {shared_gpu_name: '3'}
-    utils.set_name(task_info["data"],shared_name)
-    utils.set_resources(task_info["data"], resource)
-    print(task_info)
-    tclient.submit_pod(task_info,blocking=True)
-    exclusive_name = "exclusive-gpu"
-    resource = {exclusive_gpu_name: '3'}
-    utils.set_name(task_info["data"], exclusive_name)
-    utils.set_resources(task_info["data"], resource)
-    tclient.submit_pod(task_info,blocking=True)
-    try:
-        print("*"*50+"shared count" +"*"*50)
-        print("*"*100)
-        counts = [5,6]
-        tclient.test(counts, [0]*len(counts), True, task_info)
+    # print("initializing test environment")
+    # shared_name = "shared-gpu"
+    # resource = {shared_gpu_name: '3'}
+    # utils.set_name(task_info["data"],shared_name)
+    # utils.set_resources(task_info["data"], resource)
+    # print(task_info)
+    # tclient.submit_pod(task_info,blocking=True)
+    # exclusive_name = "exclusive-gpu"
+    # resource = {exclusive_gpu_name: '3'}
+    # utils.set_name(task_info["data"], exclusive_name)
+    # utils.set_resources(task_info["data"], resource)
+    # tclient.submit_pod(task_info,blocking=True)
+    # try:
+    #     print("*"*50+"shared count" +"*"*50)
+    #     print("*"*100)
+    #     counts = [5,6]
+    #     tclient.test(counts, [0]*len(counts), True, task_info)
         
-        print("*"*50+"exclusive count"  +"*"*50)
-        print("*"*100)
-        counts = [2,4,1]
-        tclient.test(counts, [0]*len(counts), False, task_info)
+    #     print("*"*50+"exclusive count"  +"*"*50)
+    #     print("*"*100)
+    #     counts = [2,4,1]
+    #     tclient.test(counts, [0]*len(counts), False, task_info)
         
-        print("*"*50+"shared memory" +"*"*50)
-        print("*"*100)
-        counts = [2,2,3,5,5]
-        memorys = [20,30,30,50,60]
-        tclient.test(counts, memorys, True,task_info)
+    #     print("*"*50+"shared memory" +"*"*50)
+    #     print("*"*100)
+    #     counts = [2,2,3,5,5]
+    #     memorys = [20,30,30,50,60]
+    #     tclient.test(counts, memorys, True,task_info)
 
-        print("*"*50+"exclusive memory" +"*"*50)
-        print("*"*100)
-        counts = [1,1]
-        memorys = [10,12]
-        tclient.test(counts, memorys, False,task_info)
-    finally:
-        tclient.delete(shared_name, namespace)
-        tclient.delete(exclusive_name, namespace)
+    #     print("*"*50+"exclusive memory" +"*"*50)
+    #     print("*"*100)
+    #     counts = [1,1]
+    #     memorys = [10,12]
+    #     tclient.test(counts, memorys, False,task_info)
+    # finally:
+    #     tclient.delete(shared_name, namespace)
+    #     tclient.delete(exclusive_name, namespace)
 
     # while True:
     #     time.sleep(2)
