@@ -244,6 +244,7 @@ def resume_pod(task_info, blocking=False):
 
 def append_or_update_node_label(node_name, label_k, label_v=None):
     '''
+    :param label_v: if label_v==None, ===> label_v = label_k
     :return: api_response or None 
     '''    
     if label_v == None:
@@ -292,7 +293,6 @@ def get_node_labels(node_name):
     else:
         metadata = v1_node.metadata
         return metadata.labels
-
 
 # get functions
 def get_node_info(node_name):
@@ -434,6 +434,21 @@ def list_node_labels():
     except ApiException as e:
         print(e)
         return None
+
+def list_node_names():
+    '''
+    :return: list(str)
+    '''
+    try:
+        nodes = core_v1.list_node()
+        names = []
+        for node in nodes.items:
+            metadata = node.metadata
+            names.append(metadata.name)
+        return names
+    except ApiException as e:
+        print(e)
+        return None 
 
 def list_node_pod(node_name):
     '''
