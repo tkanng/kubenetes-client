@@ -390,13 +390,14 @@ def list_node_allocated_resources():
                 containers = pod.spec.containers
                 for c in containers:
                     resources_limits = c.resources.limits  # type: dict(str, str)
-                    for k in resources_limits:
-                        if one_allocated.get(k)!=None:
-                            one_allocated[k] = one_allocated[k] + utils.convert_str_to_num(resources_limits[k])
-                        else:
-                            one_allocated[k] = utils.convert_str_to_num(resources_limits[k])
-                        if k==shared_gpu_name and utils.convert_str_to_num(resources_limits[k]) > current_shared_gpu_num:
-                            current_shared_gpu_num = utils.convert_str_to_num(resources_limits[k])
+                    if resources_limits is not None:
+                        for k in resources_limits:
+                            if one_allocated.get(k)!=None:
+                                one_allocated[k] = one_allocated[k] + utils.convert_str_to_num(resources_limits[k])
+                            else:
+                                one_allocated[k] = utils.convert_str_to_num(resources_limits[k])
+                            if k==shared_gpu_name and utils.convert_str_to_num(resources_limits[k]) > current_shared_gpu_num:
+                                current_shared_gpu_num = utils.convert_str_to_num(resources_limits[k])
             r = item.status.allocatable
             gpu_memory_capacity = utils.convert_str_to_num(r[gpu_memory_name]) if r.get(gpu_memory_name)!=None else 0
             gpu_free_memory = utils.convert_str_to_num(r[gpu_free_memory_name]) if r.get(gpu_free_memory_name)!=None else 0

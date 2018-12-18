@@ -188,12 +188,12 @@ class Tclient(object):
             self.delete(name, namespace,blocking=True)
             
 if __name__ == '__main__':
-    # tclient = Tclient()
-    # task_info = {}
-    # namespace = "default"
-    # task_info["data"] = utils.pod_template
-    # task_info["owner"] = "qiang.kang"
-    # task_info["namespace"] = namespace
+    tclient = Tclient()
+    task_info = {}
+    namespace = "default"
+    task_info["data"] = utils.pod_template
+    task_info["owner"] = "qiang.kang"
+    task_info["namespace"] = namespace
     # try:     
     #     tclient.create_container(utils.data, blocking=True)
     #     time.sleep(100000)
@@ -242,43 +242,43 @@ if __name__ == '__main__':
     # image = "tensorflow/tensorflow:latest-gpu"
     # replicas = 1
 
-    # print("initializing test environment")
-    # shared_name = "shared-gpu"
-    # resource = {shared_gpu_name: '3'}
-    # utils.set_name(task_info["data"],shared_name)
-    # utils.set_resources(task_info["data"], resource)
-    # print(task_info)
-    # tclient.submit_pod(task_info,blocking=True)
-    # exclusive_name = "exclusive-gpu"
-    # resource = {exclusive_gpu_name: '3'}
-    # utils.set_name(task_info["data"], exclusive_name)
-    # utils.set_resources(task_info["data"], resource)
-    # tclient.submit_pod(task_info,blocking=True)
-    # try:
-    #     print("*"*50+"shared count" +"*"*50)
-    #     print("*"*100)
-    #     counts = [5,6]
-    #     tclient.test(counts, [0]*len(counts), True, task_info)
+    print("initializing test environment")
+    shared_name = "shared-gpu"
+    resource = {shared_gpu_name: '3'}
+    utils.set_name(task_info["data"],shared_name)
+    utils.set_resources(task_info["data"], resource)
+    print(task_info)
+    tclient.submit_pod(task_info,blocking=True)
+    exclusive_name = "exclusive-gpu"
+    resource = {exclusive_gpu_name: '3'}
+    utils.set_name(task_info["data"], exclusive_name)
+    utils.set_resources(task_info["data"], resource)
+    tclient.submit_pod(task_info,blocking=True)
+    try:
+        print("*"*50+"shared count" +"*"*50)
+        print("*"*100)
+        counts = [5,6]
+        tclient.test(counts, [0]*len(counts), True, task_info)
         
-    #     print("*"*50+"exclusive count"  +"*"*50)
-    #     print("*"*100)
-    #     counts = [2,4,1]
-    #     tclient.test(counts, [0]*len(counts), False, task_info)
+        print("*"*50+"exclusive count"  +"*"*50)
+        print("*"*100)
+        counts = [2,4,1]
+        tclient.test(counts, [0]*len(counts), False, task_info)
         
-    #     print("*"*50+"shared memory" +"*"*50)
-    #     print("*"*100)
-    #     counts = [2,2,3,5,5]
-    #     memorys = [20,30,30,50,60]
-    #     tclient.test(counts, memorys, True,task_info)
+        print("*"*50+"shared memory" +"*"*50)
+        print("*"*100)
+        counts = [2,2,3,5,5]
+        memorys = [20,30,30,50,60]
+        tclient.test(counts, memorys, True,task_info)
 
-    #     print("*"*50+"exclusive memory" +"*"*50)
-    #     print("*"*100)
-    #     counts = [1,1]
-    #     memorys = [10,12]
-    #     tclient.test(counts, memorys, False,task_info)
-    # finally:
-    #     tclient.delete(shared_name, namespace)
-    #     tclient.delete(exclusive_name, namespace)
+        print("*"*50+"exclusive memory" +"*"*50)
+        print("*"*100)
+        counts = [1,1]
+        memorys = [10,12]
+        tclient.test(counts, memorys, False,task_info)
+    finally:
+        tclient.delete(shared_name, namespace)
+        tclient.delete(exclusive_name, namespace)
 
     # while True:
     #     time.sleep(2)
